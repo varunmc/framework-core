@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mc.varun.proto;
+
+message TestMessage {
+  string payload = 1;
+}

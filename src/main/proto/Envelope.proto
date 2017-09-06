@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package mc.varun.proto;
+
+import "google/protobuf/any.proto";
+
+message Envelope {
+  string id = 1;
+  string correlationId = 2;
+  string applicationId = 3;
+  string requesterId = 4;
+  google.protobuf.Any contents = 5;
+}

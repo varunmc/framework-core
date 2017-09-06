@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: The core framework library
+
+####################
+Parameters:
+  AWSAccessKeyId:
+    Description: The AWS access key id
+    Type: String
+
+  AWSSecretAccessKey:
+    Description: The AWS secret access key
+    Type: String
+
+  GitHubToken:
+    Description: The GitHub OAuth token
+    Type: String
+
+  Repository:
+    Default: framework-core
+    Description: The repository name
+    Type: String
+
+  RepositoryOwner:
+    Default: varunmc
+    Description: The repository owner
+    Type: String
+
+####################
+Resources:
+  CodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+        - Name: AWS_ACCESS_KEY_ID
+          Value: !Ref AWSAccessKeyId
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: !Ref AWSSecretAccessKey
+        Image: aws/codebuild/java:openjdk-8
+        Type: LINUX_CONTAINER
+      Name: !Ref AWS::StackName
+      ServiceRole: !GetAtt [CodeBuildRole, Arn]
+      Source:
+        Auth:
+          Resource: !Ref GitHubToken
+          Type: OAUTH
+        Location: !Sub https://github.com/${RepositoryOwner}/${Repository}.git
+        Type: GITHUB
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/PowerUserAccess
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Ref Store
+        Type: S3
+      Name: !Ref AWS::StackName
+      RoleArn: !GetAtt [CodePipelineRole, Arn]
+      Stages:
+      - Name: Source
+        Actions:
+        - Name: Checkout
+          ActionTypeId:
+            Category: Source
+            Owner: ThirdParty
+            Provider: GitHub
+            Version: 1
+          Configuration:
+            Branch: master
+            OAuthToken: !Ref GitHubToken
+            Owner: !Ref RepositoryOwner
+            Repo: !Ref Repository
+          OutputArtifacts:
+          - Name: Sources
+      - Name: Build
+        Actions:
+        - Name: Build
+          ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: 1
+          Configuration:
+            ProjectName: !Ref CodeBuild
+          InputArtifacts:
+          - Name: Sources
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - codepipeline.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AdministratorAccess
+
+  Store:
+    Type: AWS::S3::Bucket

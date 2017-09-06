@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package mc.varun.proto;
+
+message CreateTopicCommand {
+  string name = 1;
+  int32 partitions = 2;
+  int32 replicationFactor = 3;
+}
